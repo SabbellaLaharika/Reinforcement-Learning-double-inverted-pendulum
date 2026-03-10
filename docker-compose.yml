@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    volumes:
+      - .:/app
+    environment:
+      - DISPLAY=${DISPLAY}
+    network_mode: host
+
+  train:
+    build: .
+    volumes:
+      - .:/app
+    command: python train.py --reward_type shaped --timesteps 200000 --save_path models/ppo_model.zip
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  evaluate:
+    build: .
+    volumes:
+      - .:/app
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    environment:
+      - DISPLAY=${DISPLAY}
+    command: python evaluate.py --model_path models/shaped_model.zip
