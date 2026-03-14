@@ -14,8 +14,12 @@ def evaluate():
     env = DoublePendulumEnv(render_mode="human")
     
     # 3. Load the trained agent (Requirement 7)
-    print(f"Loading model: {args.model_path}")
-    model = PPO.load(args.model_path, env=env)
+    model_path = args.model_path
+    if model_path.endswith(".zip"):
+        model_path = model_path[:-4]
+    
+    print(f"Loading model: {model_path}")
+    model = PPO.load(model_path, env=env)
 
     # 4. Evaluation Loop
     obs, info = env.reset()

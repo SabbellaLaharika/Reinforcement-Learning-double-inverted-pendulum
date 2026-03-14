@@ -54,12 +54,6 @@ class DoublePendulumEnv(gym.Env):
         self.cart_body = pymunk.Body(self.cart_mass, inertia)
         self.cart_body.position = (0, 0)
         self.cart_shape = pymunk.Poly.create_box(self.cart_body, (50, 30))
-        self.space.add(self.cart_body, self.cart_shape)
-
-        # 4 (Partial): Create a GrooveJoint to constrain the cart to a horizontal track
-        # Line from (-1000, 0) to (1000, 0), with the cart anchor at (0, 0)
-        track = pymunk.GrooveJoint(self.space.static_body, self.cart_body, (-1000, 0), (1000, 0), (0, 0))
-        self.space.add(track)
 
         # 3. Create the two pole Body and Shape objects
         self.pole1_mass = 0.5
@@ -68,7 +62,6 @@ class DoublePendulumEnv(gym.Env):
         self.pole1_body = pymunk.Body(self.pole1_mass, inertia1)
         self.pole1_body.position = (0, -15) # Start at top of cart
         self.pole1_shape = pymunk.Segment(self.pole1_body, (0, 0), (0, -self.pole1_length), 5)
-        self.space.add(self.pole1_body, self.pole1_shape)
 
         self.pole2_mass = 0.5
         self.pole2_length = 100.0
@@ -76,16 +69,22 @@ class DoublePendulumEnv(gym.Env):
         self.pole2_body = pymunk.Body(self.pole2_mass, inertia2)
         self.pole2_body.position = (0, -15 - self.pole1_length) # Start at top of pole 1
         self.pole2_shape = pymunk.Segment(self.pole2_body, (0, 0), (0, -self.pole2_length), 5)
-        self.space.add(self.pole2_body, self.pole2_shape)
 
-        # 4 (Partial): Create the joints (PivotJoint) to connect components
+        # 4. Create the joints
+        # Constrain cart to horizontal track
+        track = pymunk.GrooveJoint(self.space.static_body, self.cart_body, (-1000, 0), (1000, 0), (0, 0))
         # Cart <-> Pole 1
         joint1 = pymunk.PivotJoint(self.cart_body, self.pole1_body, (0, -15), (0, 0))
-        self.space.add(joint1)
-
         # Pole 1 <-> Pole 2
         joint2 = pymunk.PivotJoint(self.pole1_body, self.pole2_body, (0, -self.pole1_length), (0, 0))
-        self.space.add(joint2)
+
+        # 5. Add all bodies, shapes, and joints to the pymunk.Space
+        self.space.add(
+            self.cart_body, self.cart_shape,
+            self.pole1_body, self.pole1_shape,
+            self.pole2_body, self.pole2_shape,
+            track, joint1, joint2
+        )
 
         # Add small random noise to start state (slightly upright)
         self.pole1_body.angle = self.np_random.uniform(-0.1, 0.1)
@@ -103,6 +102,22 @@ class DoublePendulumEnv(gym.Env):
             self.pole1_body.angular_velocity,
             self.pole2_body.angle,
             self.pole2_body.angular_velocity
+        ], dtype=np.float32)
+            
+    def _calculate_reward(self, obs, action):
+        x, vx, theta1, omega1, theta2, omega2 = obs
+        
+        # Baseline Reward: cos(theta1) + cos(theta2) (Requirement 4)
+        reward = math.cos(theta1) + math.cos(theta2)
+
+        # Shaped Reward (Requirement 5)
+        if self.reward_type == 'shaped':
+            reward -= abs(x) * 0.1             # Center penalty
+            reward -= (abs(omega1) + abs(omega2)) * 0.01  # Velocity penalty
+            reward -= (action[0]**2) * 0.001   # Action penalty
+            
+        return reward
+
     def step(self, action):
         # 2. Apply force to cart
         force = action[0] * self.force_scale
@@ -116,14 +131,7 @@ class DoublePendulumEnv(gym.Env):
         x, vx, theta1, omega1, theta2, omega2 = obs
 
         # 4. Calculate reward
-        # Baseline Reward: cos(theta1) + cos(theta2) (Requirement 4)
-        reward = math.cos(theta1) + math.cos(theta2)
-
-        # Shaped Reward (Requirement 5)
-        if self.reward_type == 'shaped':
-            reward -= abs(x) * 0.1             # Center penalty
-            reward -= (abs(omega1) + abs(omega2)) * 0.01  # Velocity penalty
-            reward -= (action[0]**2) * 0.001   # Action penalty
+        reward = self._calculate_reward(obs, action)
 
         # 5. Determine if the episode is over
         terminated = False
@@ -142,7 +150,10 @@ class DoublePendulumEnv(gym.Env):
 
         if self.screen is None:
             pygame.init()
-            self.screen = pygame.display.set_mode((800, 600))
+            if self.render_mode == "human":
+                self.screen = pygame.display.set_mode((800, 600))
+            else:
+                self.screen = pygame.Surface((800, 600))
             self.clock = pygame.time.Clock()
 
         self.screen.fill((255, 255, 255))
@@ -167,8 +178,13 @@ class DoublePendulumEnv(gym.Env):
         p2_end = to_pygame(self.pole2_body.local_to_world((0, -self.pole2_length)))
         pygame.draw.line(self.screen, (50, 50, 200), p2_start, p2_end, 5)
 
-        pygame.display.flip()
-        self.clock.tick(self.metadata["render_fps"])
+        if self.render_mode == "human":
+            pygame.display.flip()
+            self.clock.tick(self.metadata["render_fps"])
+        else: # rgb_array
+            return np.transpose(
+                np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
+            )
 
     def close(self):
         if self.screen is not None:

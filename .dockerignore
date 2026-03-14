@@ -1,0 +1,13 @@
+.git
+__pycache__
+models/
+logs/
+media/
+*.zip
+*.csv
+*.png
+*.gif
+.env
+.venv
+venv/
+node_modules/

@@ -1,62 +1,99 @@
-# Double Inverted Pendulum Reinforcement Learning
+# Double Inverted Pendulum - Reinforcement Learning
 
-This project implements a custom 2D physics-based environment for a double inverted pendulum using `pymunk` and `pygame`. It includes a trained Proximal Policy Optimization (PPO) agent from `stable-baselines3`.
+This project implements a custom reinforcement learning environment for a **Double Inverted Pendulum** using `pymunk` for 2D rigid body physics and `pygame` for visualization. The agent is trained using Stable Baselines 3's PPO algorithm.
 
-## Environment Design
-The environment, `DoublePendulumEnv`, simulates a cart on a horizontal track with two interconnected poles.
-- **Physics Engine**: `pymunk` handles rigid body dynamics, gravity, and constraints.
-- **Constraints**: 
-  - A `GrooveJoint` keeps the cart on a horizontal track.
-  - `PivotJoints` connect the cart to the first pole, and the first pole to the second.
-- **State Space**: A 6-dimensional vector: `[cart_x, cart_vx, pole1_angle, pole1_omega, pole2_angle, pole2_omega]`.
-- **Action Space**: A single continuous value `[-1.0, 1.0]` representing the horizontal force applied to the cart.
+### Environment Design: Describing the pymunk setup
+The environment is built using `pymunk`. The `DoublePendulumEnv` class simulates the physics of the system.
+- **Cart**: A box body constrained to move horizontally along a `GrooveJoint` track.
+- **Poles**: Two segments connected using `PivotJoints`. The first pole connects to the cart, and the second pole connects to the end of the first pole.
+- **Action Space**: A single continuous value between -1.0 and 1.0, representing the horizontal force applied to the cart.
+- **Observation Space**: A 6-dimensional vector containing the cart's position and velocity, as well as the angle and angular velocity of both poles.
+- **Simulation**: The `pymunk.Space` uses a gravity of `(0, 900)` and is stepped at `1/60` of a second.
 
-## Reward Function Design
+### Reward Function Design: Explaining the mathematical formulation and rationale for both the baseline and shaped reward functions
+The agent is trained to balance the two inverted poles. The environment supports two reward formulations:
+- **Baseline Reward**: This reward is defined as mathematically proportional to the upright angles: `reward = cos(theta1) + cos(theta2)`. It yields a maximum of 2 when both poles are perfectly vertical, and drops when they lean.
+- **Shaped Reward**: In addition to the baseline, the shaped reward incorporates domain knowledge via three penalties to speed up and stabilize learning:
+  1. **Center Penalty** (`-abs(cart_x) * 0.1`): Discourages the cart from drifting too far from the center, ensuring the agent doesn't simply run off the screen while balancing.
+  2. **Velocity Penalty** (`-(abs(omega1) + abs(omega2)) * 0.01`): Penalizes erratic or fast swinging, encouraging a stable, firm balance.
+  3. **Action Penalty** (`-(action**2) * 0.001`): Discourages excessive force (energy saving), encouraging the agent to find the minimal required control signal.
 
-### Baseline Reward
-The baseline reward focuses solely on the primary goal: keeping the poles upright.
-`reward = cos(theta1) + cos(theta2)`
-This gives a maximum reward of 2.0 when both poles are perfectly vertical.
+### How to Run: Providing clear, step-by-step instructions for building the Docker image and running the training and evaluation scripts
+The project can be run either fully encapsulated in **Docker** (recommended for absolute reproducibility) or **Locally** using Python.
 
-### Shaped Reward
-The shaped reward provides more frequent and detailed feedback to guide the agent's learning:
-- **Upright Bonus**: `cos(theta1) + cos(theta2)` (same as baseline).
-- **Center Penalty**: `-abs(cart_x) * 0.1` encourages the agent to stay near the center and avoid the boundaries.
-- **Velocity Penalty**: `-(abs(omega1) + abs(omega2)) * 0.01` penalizes high angular velocities to encourage stability and prevent "jittery" behavior.
-- **Energy/Action Penalty**: `-(action**2) * 0.001` encourages the agent to reach the goal using minimal force.
-
-## How to Run
-
-### 1. Build the Docker Image
-Ensure you have Docker and Docker Compose installed.
+**1. Install Dependencies / Build Environment**
+**Docker:**
+Build the slim Docker image with multi-threading optimizations:
 ```bash
 docker-compose build
 ```
 
-### 2. Train the Agent
-To train the agent using the shaped reward function:
+**Local Script:**
 ```bash
+pip install -r requirements.txt
+```
+
+**2. Train the Agent**
+Train the PPO agent. You can configure `timesteps` and `reward_type` via the CLI.
+
+**Docker:**
+```bash
+# To train using the default shaped reward with 200,000 steps:
 docker-compose run train
-```
-To compare with the baseline, you can override the command:
-```bash
-docker-compose run train python train.py --reward_type baseline --save_path models/baseline_model.zip
+
+# To train using the baseline reward with 100,000 steps and save explicitly:
+docker-compose run train python train.py --reward_type baseline --timesteps 100000 --save_path models/ppo_baseline.zip
+
+# To train the shaped reward explicitly:
+docker-compose run train python train.py --reward_type shaped --timesteps 100000 --save_path models/ppo_shaped.zip
 ```
 
-### 3. Evaluate the Agent
-To visualize a trained model (requires an X-Server for GUI forwarding on Windows/host):
+**Local Script:**
 ```bash
-docker-compose run evaluate --model_path models/ppo_model.zip
+# Train the Baseline Agent
+python train.py --reward_type baseline --timesteps 100000 --save_path models/ppo_baseline.zip
+
+# Train the Shaped Agent
+python train.py --reward_type shaped --timesteps 100000 --save_path models/ppo_shaped.zip
 ```
 
-### 4. Compare Results
-Generate a plot comparing the learning curves of different rewards:
+**3. Evaluate the Agent**
+Watch the trained PPO agent balance the pendulum in a PyGame UI.
+
+**Docker:**
 ```bash
+# Evaluate the default model
+docker-compose run evaluate
+
+# Evaluate a specific model:
+docker-compose run evaluate python evaluate.py --model_path models/ppo_baseline.zip
+```
+
+**Local Script:**
+```bash
+python evaluate.py --model_path models/ppo_shaped.zip
+```
+
+**4. Generate Logs and Media**
+Generate plots from standard monitor logs matching both baseline and shaped rewards, or record GIFs of agent behavior.
+
+**Docker:**
+```bash
+# Generate the reward_comparison.png plot (Requires both baseline and shaped trained logs):
 docker-compose run app python plot_results.py
+
+# Record a GIF of a specific model:
+docker-compose run app python record_gif.py --model_path models/ppo_shaped.zip --output_path media/agent_final.gif
 ```
 
-## Results
-- **Reward Comparison**: `reward_comparison.png` shows the training performance.
-- **Performance**:
-  - `media/agent_initial.gif`: Performance early in training.
-  - `media/agent_final.gif`: Performance after full training.
+**Local Script:**
+```bash
+# Generate the Final Plot (reads CSV logs from both baseline and shaped runs):
+python plot_results.py --logs_dir logs
+
+# Generate the "Initial" Agent GIF (using an early stopped or basic model):
+python record_gif.py --model_path models/ppo_initial.zip --output_path media/agent_initial.gif
+
+# Generate the "Final" Agent GIF (using the fully trained model):
+python record_gif.py --model_path models/ppo_shaped.zip --output_path media/agent_final.gif
+```
