@@ -9,16 +9,15 @@ This project implements a custom reinforcement learning environment for a **Doub
 ## 🏗️ High-Level Architecture & Flow
 
 ```mermaid
-flowchart LR
-    %% Ultra-clean RL Loop
-    State[Pymunk Physics:<br>Cart & Poles] --> Obs([6D Observation])
-    State --> Reward([Shaped Reward])
+graph LR
+    Env[Physics Environment] --> Obs([6D State])
+    Env --> Rew([Shaped Reward])
     
     Obs --> PPO{PPO Agent}
-    Reward --> PPO
+    Rew --> PPO
     
-    PPO --> Action([1D Action Force])
-    Action -.->|Updates Physics| State
+    PPO --> Act([1D Action])
+    Act -.->|Force| Env
 ```
 
 
