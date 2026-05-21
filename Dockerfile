@@ -1,34 +1,42 @@
 # syntax=docker/dockerfile:1
-# Build stage
+# --- Build Stage ---
 FROM python:3.9-slim AS builder
 
 WORKDIR /app
 
-# The article's trick: copy uv directly from its official image! No curl or apt-get needed.
+# Install uv directly from its official image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Create a virtual environment
+# Create a virtual environment (Best Practice)
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+ENV UV_HTTP_TIMEOUT=300
 
-# Copy the requirements file
 COPY requirements.txt .
 
-# Use uv pip with caching enabled for subsequent ultra-fast builds.
+# Use BuildKit caching for ultra-fast rebuilds AND the index strategy fix
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install \
+    --index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pypi.org/simple \
+    --index-strategy unsafe-best-match \
     torch==2.2.1+cpu \
-    --index-url https://download.pytorch.org/whl/cpu
+    -r requirements.txt
 
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install -r requirements.txt \
-    --extra-index-url https://download.pytorch.org/whl/cpu
+# Aggressively prune the virtual environment to minimize size
+RUN find /opt/venv -name "tests" -type d -exec rm -rf {} + && \
+    find /opt/venv -name "test" -type d -exec rm -rf {} + && \
+    rm -rf /opt/venv/lib/python3.9/site-packages/cv2/qt && \
+    rm -rf /opt/venv/lib/python3.9/site-packages/ale_py/roms && \
+    rm -rf /opt/venv/lib/python3.9/site-packages/torch/include && \
+    rm -rf /opt/venv/lib/python3.9/site-packages/torch/share && \
+    find /opt/venv/lib/python3.9/site-packages/torch/lib -name "*.a" -delete
 
-# Production stage - pure runtime
+# --- Production Stage ---
 FROM python:3.9-slim
 WORKDIR /app
 
-# Install ONLY runtime dependencies for pygame and xvfb
+# Install ONLY runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libsdl2-2.0-0 \
     libxext6 \
@@ -37,7 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Copy the fully built virtual environment from the builder stage
+# Copy the fully built and PRUNED virtual environment
 COPY --from=builder /opt/venv /opt/venv
 
 # Activate the venv and add python optimizations
@@ -45,8 +53,6 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Copy the application code last (this layer changes most frequently)
 COPY . .
 
-# Create mandatory output directories
 RUN mkdir -p models logs media

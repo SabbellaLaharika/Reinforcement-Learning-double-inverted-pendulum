@@ -123,6 +123,10 @@ class DoublePendulumEnv(gym.Env):
         force = action[0] * self.force_scale
         self.cart_body.apply_force_at_local_point((force, 0), (0, 0))
 
+        # Apply physics damping as documented in the questionnaire
+        self.pole1_body.angular_velocity *= 0.99
+        self.pole2_body.angular_velocity *= 0.99
+
         # 3. Advance physics simulation
         self.space.step(self.dt)
 
