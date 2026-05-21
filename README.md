@@ -2,46 +2,42 @@
 
 This project implements a custom reinforcement learning environment for a **Double Inverted Pendulum** using `pymunk` for 2D rigid body physics and `pygame` for visualization. The agent is trained using Stable Baselines 3's PPO algorithm.
 
-<p align="center">
-  <img src="media/agent_initial.gif" alt="Initial Untrained Agent" width="45%" />
-  <img src="media/agent_final.gif" alt="Fully Trained Agent" width="45%" />
-</p>
+| ❌ Initial Untrained Agent (Random Actions) | ✅ Fully Trained PPO Agent (Balanced) |
+| :---: | :---: |
+| <img src="media/agent_initial.gif" alt="Initial Untrained Agent" width="400" /> | <img src="media/agent_final.gif" alt="Fully Trained Agent" width="400" /> |
 
 ## 🏗️ High-Level Architecture & Flow
 
 ```mermaid
-flowchart TD
-    subgraph Physics ["Pymunk Physics Engine (60Hz)"]
-        Damping["Linear & Angular Damping"]
-        Cart["Cart (Position: x, Velocity: v_x)"]
-        Pole1["Pole 1 (Angle: θ1, Velocity: ω1)"]
-        Pole2["Pole 2 (Angle: θ2, Velocity: ω2)"]
+graph TD
+    subgraph Physics[Pymunk Physics Engine]
+        Damping[Linear & Angular Damping]
+        Cart[Cart Position & Velocity]
+        Poles[Poles 1 & 2 Angles & Velocities]
     end
 
-    subgraph Gym ["Gymnasium Interface"]
-        Obs["6D Observation Vector"]
-        Reward["Shaped Reward (Penalties applied)"]
+    subgraph Gym[Gymnasium Interface]
+        Obs[6D Observation Vector]
+        Reward[Shaped Reward Penalties]
     end
 
-    subgraph Agent ["Stable Baselines 3"]
-        PPO["PPO Agent (MLP Policy)"]
-        Action["1D Action Tensor (Force)"]
+    subgraph Agent[Stable Baselines 3]
+        PPO[PPO Agent MLP Policy]
+        Action[1D Action Force]
     end
 
+    Damping -.-> Poles
     Cart --> Obs
-    Pole1 --> Obs
-    Pole2 --> Obs
+    Poles --> Obs
     
-    Cart -.-> Reward
-    Pole1 -.-> Reward
-    Pole2 -.-> Reward
+    Cart --> Reward
+    Poles --> Reward
 
     Obs --> PPO
     Reward --> PPO
+    
     PPO --> Action
-    Action -->|Horizontal Force applied to Cart| Cart
-    Damping -.->|Stabilizes| Pole1
-    Damping -.->|Stabilizes| Pole2
+    Action -->|Applied horizontally| Cart
 ```
 
 
@@ -64,17 +60,6 @@ The agent is trained to balance the two inverted poles. The environment supports
 <p align="center">
   <img src="reward_comparison.png" alt="Reward Comparison Graph" width="80%" />
 </p>
-
-### Challenges Faced & Solutions
-During development, the most significant challenge was **physics instability**. 
-Because `pymunk` accurately simulates rigid body dynamics, the extreme momentum of two interconnected poles caused severe jittering, making it impossible for the neural network to converge on a stable policy.
-- **Solution:** I introduced artificial **linear and angular damping** (`angular_velocity *= 0.99`) directly into the `pymunk` bodies during the `step()` function. This simulates real-world joint friction and immediately stabilized the learning process.
-- **Robustness:** To ensure the environment's physics engine remains stable across updates, I implemented a robust `pytest` suite to verify state transitions and observation bounds.
-
-### Future Scope & Improvements
-While the PPO agent successfully balances the pendulum, the environment leaves room for further exploration:
-1. **Automated Hyperparameter Tuning:** Integrate `Optuna` to programmatically search for the optimal PPO learning rate, batch size, and entropy coefficient instead of relying on heuristics.
-2. **Advanced Algorithms:** Experiment with off-policy algorithms like **Soft Actor-Critic (SAC)** or **TD3**, which often boast better sample efficiency for continuous control tasks.
 
 ### How to Run: Providing clear, step-by-step instructions for building the Docker image and running the training and evaluation scripts
 The project can be run either fully encapsulated in **Docker** (recommended for absolute reproducibility) or **Locally** using Python.
@@ -155,3 +140,17 @@ python record_gif.py --model_path models/ppo_initial.zip --output_path media/age
 # Generate the "Final" Agent GIF (using the fully trained model):
 python record_gif.py --model_path models/ppo_shaped.zip --output_path media/agent_final.gif
 ```
+
+### ⚠️ Challenges Faced & Solutions
+During development, two major hurdles were encountered and resolved:
+
+1. **Physics Instability:** Because `pymunk` accurately simulates rigid body dynamics, the extreme momentum of two interconnected poles caused severe jittering, preventing policy convergence.
+   - **Solution:** Introduced artificial **linear and angular damping** (`angular_velocity *= 0.99`) directly into the `pymunk` bodies during the `step()` function. This successfully mimics real-world joint friction and instantly stabilized the learning process.
+2. **Sparse Reward Exploitation:** The baseline reward (relying purely on cosine angles) allowed the agent to exploit the physics engine by accelerating infinitely in one direction to maintain artificial equilibrium via momentum.
+   - **Solution:** Engineered a comprehensive **Shaped Reward** function containing three distinct penalties (center drift penalty, velocity penalty, and action magnitude penalty) to force stable, energy-efficient control.
+
+### 🔮 Future Scope & Improvements
+While the PPO agent successfully balances the pendulum, the environment leaves room for further exploration:
+1. **Automated Hyperparameter Tuning:** Integrate `Optuna` to programmatically search for the optimal PPO learning rate, batch size, and entropy coefficient instead of relying on static heuristics.
+2. **Advanced Off-Policy Algorithms:** Experiment with algorithms like **Soft Actor-Critic (SAC)** or **TD3**, which often boast superior sample efficiency for continuous control tasks.
+3. **Domain Randomization:** Dynamically alter the mass and length of the poles during training to force the policy network to learn a much more robust and generalized control strategy.
