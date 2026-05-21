@@ -2,42 +2,23 @@
 
 This project implements a custom reinforcement learning environment for a **Double Inverted Pendulum** using `pymunk` for 2D rigid body physics and `pygame` for visualization. The agent is trained using Stable Baselines 3's PPO algorithm.
 
-| ❌ Initial Untrained Agent (Random Actions) | ✅ Fully Trained PPO Agent (Balanced) |
+| ❌ Initial Untrained (Random) | ✅ Fully Trained (Balanced) |
 | :---: | :---: |
-| <img src="media/agent_initial.gif" alt="Initial Untrained Agent" width="400" /> | <img src="media/agent_final.gif" alt="Fully Trained Agent" width="400" /> |
+| <img src="media/agent_initial.gif" width="250" /> | <img src="media/agent_final.gif" width="250" /> |
 
 ## 🏗️ High-Level Architecture & Flow
 
 ```mermaid
-graph TD
-    subgraph Physics[Pymunk Physics Engine]
-        Damping[Linear & Angular Damping]
-        Cart[Cart Position & Velocity]
-        Poles[Poles 1 & 2 Angles & Velocities]
-    end
-
-    subgraph Gym[Gymnasium Interface]
-        Obs[6D Observation Vector]
-        Reward[Shaped Reward Penalties]
-    end
-
-    subgraph Agent[Stable Baselines 3]
-        PPO[PPO Agent MLP Policy]
-        Action[1D Action Force]
-    end
-
-    Damping -.-> Poles
-    Cart --> Obs
-    Poles --> Obs
+flowchart LR
+    %% Ultra-clean RL Loop
+    State[Pymunk Physics:<br>Cart & Poles] --> Obs([6D Observation])
+    State --> Reward([Shaped Reward])
     
-    Cart --> Reward
-    Poles --> Reward
-
-    Obs --> PPO
+    Obs --> PPO{PPO Agent}
     Reward --> PPO
     
-    PPO --> Action
-    Action -->|Applied horizontally| Cart
+    PPO --> Action([1D Action Force])
+    Action -.->|Updates Physics| State
 ```
 
 
@@ -150,7 +131,7 @@ During development, two major hurdles were encountered and resolved:
    - **Solution:** Engineered a comprehensive **Shaped Reward** function containing three distinct penalties (center drift penalty, velocity penalty, and action magnitude penalty) to force stable, energy-efficient control.
 
 ### 🔮 Future Scope & Improvements
-While the PPO agent successfully balances the pendulum, the environment leaves room for further exploration:
-1. **Automated Hyperparameter Tuning:** Integrate `Optuna` to programmatically search for the optimal PPO learning rate, batch size, and entropy coefficient instead of relying on static heuristics.
-2. **Advanced Off-Policy Algorithms:** Experiment with algorithms like **Soft Actor-Critic (SAC)** or **TD3**, which often boast superior sample efficiency for continuous control tasks.
-3. **Domain Randomization:** Dynamically alter the mass and length of the poles during training to force the policy network to learn a much more robust and generalized control strategy.
+While the current agent successfully balances the pendulum, the project leaves room for further exploration:
+1. **Automated Tuning:** Currently, we manually test different learning settings for the AI. In the future, we can use automated tools to find the absolute best settings much faster.
+2. **Testing Different AI Models:** We are currently using the PPO algorithm. In the future, we could experiment with other modern AI algorithms to see if they can learn to balance the poles even faster.
+3. **Dynamic Environments:** To make the AI even smarter, we could randomly change the weight and length of the poles while it trains. This would force the AI to adapt to unexpected changes, making it much more robust.
