@@ -6,6 +6,18 @@ This project implements a custom reinforcement learning environment for a **Doub
 | :---: | :---: |
 | <img src="media/agent_initial.gif" width="250" /> | <img src="media/agent_final.gif" width="250" /> |
 
+## 🌍 Real-World Use Cases
+
+While the Double Inverted Pendulum is a classic control theory environment, the underlying mathematics and reinforcement learning strategies are directly applicable to highly complex real-world systems:
+
+<p align="center">
+  <img src="media/real_world_use_cases.png" alt="Real-World Use Cases" width="90%" />
+</p>
+
+1. **Bipedal Locomotion**: Keeps humanoid robots and walking machines balanced to prevent them from falling over.
+2. **Industrial Automation**: Stabilizes extremely heavy suspended payloads on automated cranes, preventing erratic swinging.
+3. **Aerospace Engineering**: Manages the precise thrust vectoring needed to safely perform vertical landings for multi-stage rockets.
+
 ## 🏗️ High-Level Architecture & Flow
 
 ```mermaid
