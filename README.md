@@ -2,6 +2,10 @@
 
 This project implements a custom reinforcement learning environment for a **Double Inverted Pendulum** using `pymunk` for 2D rigid body physics and `pygame` for visualization. The agent is trained using Stable Baselines 3's PPO algorithm.
 
+## 🎥 Project Demo
+
+[![Watch the project demo on YouTube](https://img.youtube.com/vi/cZUS2jCjInA/hqdefault.jpg)](https://youtu.be/cZUS2jCjInA)
+
 | ❌ Initial Untrained (Random) | ✅ Fully Trained (Balanced) |
 | :---: | :---: |
 | <img src="media/agent_initial.gif" width="250" /> | <img src="media/agent_final.gif" width="250" /> |
