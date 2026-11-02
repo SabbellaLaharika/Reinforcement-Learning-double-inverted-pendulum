@@ -4,7 +4,7 @@ This project implements a custom reinforcement learning environment for a **Doub
 
 ## 🎥 Project Demo
 
-[![Watch the project demo on YouTube](https://img.youtube.com/vi/cZUS2jCjInA/hqdefault.jpg)](https://youtu.be/cZUS2jCjInA)
+[![Watch the project demo on YouTube](https://img.youtube.com/vi/cZUS2jCjInA/maxresdefault.jpg)](https://youtu.be/cZUS2jCjInA)
 
 | ❌ Initial Untrained (Random) | ✅ Fully Trained (Balanced) |
 | :---: | :---: |
